@@ -14,7 +14,17 @@ Type these during a session to invoke specific capabilities:
 | `/research-decision` | Evaluate results: PROCEED / REFINE / PIVOT | After every experiment or milestone |
 | `/data-loader` | Load datasets from HuggingFace or Kaggle | Setting up data pipelines |
 | `/sub-project` | Manage concurrent research streams | When juggling multiple threads |
+| `/review-figure` | Two-pass review of a manuscript figure (style + factual grounding) | Before sending a figure to co-authors or pasting it into the paper |
 | `/slack` | Enable async Slack communication | When you need to step away but want updates |
+
+**Subagents** (delegated by the main agent, not invoked directly):
+
+| Subagent | What It Does | When the Main Agent Delegates |
+|----------|-------------|-------------------------------|
+| `literature-researcher` | Searches academic sources, summarizes papers | Literature review tasks |
+| `code-implementer` | Writes and runs code against your project conventions | Implementation work |
+| `data-analyst` | Loads, profiles, and analyzes datasets | Analysis and statistics |
+| `figure-specialist` | Creates, modifies, and renders publication-quality figures following `FIGURE_AGENT_PROMPT.md` | Any figure create / modify / bootstrap-from-Mermaid task |
 
 ---
 
@@ -36,6 +46,8 @@ Type these during a session to invoke specific capabilities:
 | **Sub-project** | An isolated research stream within your project. Has its own state, knowledge, and lessons. |
 | **Episode** | A narrative summary of a session — what was discussed, decided, and what remains open. |
 | **Version/Snapshot** | A saved checkpoint of your project state. Created before major decisions so you can roll back if needed. |
+| **Figure Style Guide** | `FIGURE_AGENT_PROMPT.md` — the single source of truth for figure palette, typography, matplotlib conventions, and graphviz patterns. Automatically symlinked into every new project by `init_project.sh`. Required for any figure work. |
+| **Source-level figure workflow** | Figures are edited by modifying their Python generator script (`.py`), never by editing the rendered PDF, SVG, or PNG. Re-running the generator produces fresh artifacts. |
 
 ---
 
@@ -133,6 +145,25 @@ To manually clean up:
 - Mark outdated decisions: change their status to "SUPERSEDED by D[newer]"
 - The `kb_index_hook` will archive them on next session end
 
+### `/review-figure` reports "FIGURE_AGENT_PROMPT.md not found"
+
+This means the figure style guide is not reachable from your project. The review skill fails loud rather than silently falling back to "general publication conventions" (that would produce an incomplete review with no §1–§11 traceability).
+
+**Fix**: symlink the style guide into your project root:
+
+```bash
+cd <your-project>
+ln -s ../research-collaborator/FIGURE_AGENT_PROMPT.md FIGURE_AGENT_PROMPT.md
+```
+
+Projects created by `init_project.sh` get this symlink automatically. If you have an older project, this one-time backfill is all you need.
+
+### `figure-specialist` refuses to edit a PDF or SVG directly
+
+This is by design. Figures are modified at the source level — the subagent locates the `.py` generator, edits it, and re-runs. If only a PDF or SVG exists with no generator, the subagent will escalate.
+
+**Fix**: if the figure has a `.mmd` Mermaid spec, ask for a BOOTSTRAP: the subagent reconstructs a Python generator from the spec, then applies your edit. If neither a `.py` nor a `.mmd` exists, the figure needs to be rebuilt from scratch.
+
 ---
 
 ## Frequently Asked Questions
@@ -200,3 +231,6 @@ Some tips:
 | `.claude/settings.json` | Hook wiring and configuration | Only during initial setup |
 | `.claude/settings.local.json` | Your permissions | Yes — customize for your workflow |
 | `.claude/agents/deliberate-*.md` | Reviewer personas | Yes — customize for your domain |
+| `FIGURE_AGENT_PROMPT.md` | Figure style guide (symlink to framework) | No — shared style source of truth |
+| `manuscript/figures/*.py` | Figure generator scripts (source of truth) | Yes — via `figure-specialist` |
+| `manuscript/figures/*.pdf` / `*.png` / `*.gv` | Rendered figure outputs | No — regenerated from `.py` |
