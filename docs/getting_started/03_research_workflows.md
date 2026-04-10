@@ -23,7 +23,7 @@ graph LR
 **What to say:**
 
 > "I want to investigate [your research question]. Here's what I know so far..."
-> *(use the "noted" protocol if you have a lot of context)*
+> *(use the "noted" protocol if you have a lot of context — each idea is automatically captured to the knowledge base by a background subagent)*
 > "...I am done."
 
 **What the agent does:**

@@ -191,6 +191,26 @@ When the agent runs `/propose-lessons`, a few seconds later you'll see a one-lin
 
 ---
 
+### Note-Taker — "Capturing Your Ideas"
+
+**When**: Every time you drop an idea during the "noted" async-input protocol.
+
+**What it does**: After each "noted" response, the agent silently launches a background Haiku subagent that classifies your idea and writes it to the correct destination:
+
+- **KB entries** (questions, decisions, findings, experiments, literature, reviews) are written directly to `knowledge/*_active.md` with `Status: captured`.
+- **Lessons** (reasoning reflections, hindsight corrections) are staged to `.proposed_notes.md` for your review.
+- **Uncertain items** (too vague to classify) are also staged for manual triage.
+
+**What you see**: Nothing. The visible response is still just "noted". Classification and writing happen entirely in the background.
+
+**What you don't see**: Each subagent uses `fcntl.flock()` file locking to handle the case where you drop multiple ideas in quick succession — no duplicate IDs, no corrupted files.
+
+**After brainstorming**: Run `/note-taker status` to see what was captured, or `/note-taker review` to triage staged items. KB entries with `Status: captured` are indexed by the Stop hook automatically — they're searchable immediately but flagged as provisional until you upgrade them to `active`.
+
+**Why it matters**: Before this helper, ideas dropped during the "noted" protocol lived only in conversation context. If the session was long, they could be lost to context compression. Now every substantive idea lands in a durable, categorized location from the moment you type it.
+
+---
+
 ### Pre-Compact Backup — "Safety Net"
 
 **When**: Before the system compresses old conversation messages (happens automatically when conversations get very long).

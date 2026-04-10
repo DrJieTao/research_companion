@@ -15,6 +15,7 @@ Type these during a session to invoke specific capabilities:
 | `/data-loader` | Load datasets from HuggingFace or Kaggle | Setting up data pipelines |
 | `/sub-project` | Manage concurrent research streams | When juggling multiple threads |
 | `/adopt-to-sub-project` | One-time retroactive migration of existing root material into a new sub-project | When formalizing an existing stream that was started at the project root |
+| `/note-taker` | Inspect and triage ideas auto-captured during "noted" sessions | After brainstorming, to review staged lessons or check capture status |
 | `/propose-lessons` | Scan the tool-activity buffer for candidate lessons and write drafts to `.proposed_lessons.md` | When the `[LESSON EXTRACT]` trigger appears, or on demand |
 | `/review-figure` | Two-pass review of a manuscript figure (style + factual grounding) | Before sending a figure to co-authors or pasting it into the paper |
 | `/slack` | Enable async Slack communication | When you need to step away but want updates |
@@ -27,6 +28,7 @@ Type these during a session to invoke specific capabilities:
 | `code-implementer` | Writes and runs code against your project conventions | Implementation work |
 | `data-analyst` | Loads, profiles, and analyzes datasets | Analysis and statistics |
 | `figure-specialist` | Creates, modifies, and renders publication-quality figures following `FIGURE_AGENT_PROMPT.md` | Any figure create / modify / bootstrap-from-Mermaid task |
+| `note-taker-classifier` | Classifies a single idea and writes it to the correct KB category (`Status: captured`) or stages it to `.proposed_notes.md` for lessons/uncertain items | Automatically, per idea during "noted" async-input sessions |
 | `subproject-capture` | Records an idea into a target sub-project's KB without polluting your current session's context | When you say `/sub-project capture <slug> "<idea>"` during work on a different stream |
 | `subproject-adopt-classifier` | Inventories root-level material (KB, lessons, manuscript, code) and classifies each item into adoption buckets for a new sub-project | When you run `/adopt-to-sub-project <slug>` to formalize an existing research stream |
 
