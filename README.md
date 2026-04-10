@@ -31,6 +31,7 @@ graph TB
         H7["pre_compact<br/>PreCompact"]
         H8["subagent_stop<br/>SubagentStop"]
         H9["slack_stop_reminder<br/>Stop"]
+        H10["post_tool_use_buffer<br/>PostToolUse ⏱️"]
     end
 
     subgraph "Skills (On-Demand)"
@@ -43,6 +44,8 @@ graph TB
         S7["/data-loader"]
         S8["/sub-project"]
         S9["/slack"]
+        S10["/propose-lessons"]
+        S11["/adopt-to-sub-project"]
     end
 
     subgraph "Subagents (Delegated Work)"
@@ -51,6 +54,7 @@ graph TB
         A3["data-analyst"]
         A4["deliberate personas<br/>(4 reviewers)"]
         A5["subproject-capture<br/>(Haiku)"]
+        A6["subproject-adopt-classifier<br/>(Haiku)"]
     end
 
     subgraph "Persistent State"
@@ -277,6 +281,32 @@ Manage concurrent research streams within a project. Each sub-project gets isola
 /sub-project status
 ```
 
+See [SPEC.md v1.1](.claude/skills/sub-project/SPEC.md) for the directory layout invariants. The canonical empty sub-project structure lives at `sub_project_template/` at the framework root — both `/sub-project create` and the sibling `/adopt-to-sub-project` skill consume it as one source of truth.
+
+### /adopt-to-sub-project
+
+Sibling skill to `/sub-project` for **one-time retroactive migration** of existing root-level material into a new sub-project. Use once per sub-project when you need to formalize an existing research stream that was started at the project root.
+
+```
+/adopt-to-sub-project pilot "HICSS Dark Side Paper" "Failure modes taxonomy"
+# Classifier agent scans root, writes .adopt_proposal.md
+# Researcher reviews checkboxes in the proposal
+/adopt-to-sub-project pilot --execute
+# Physical moves with backup, path-fixup detection, log-driven rollback
+/adopt-to-sub-project pilot --rollback
+# Reverses every move and fixup using backup copies
+```
+
+Runs in three phases: **propose** (non-destructive, dispatches a Haiku classifier to write `subprojects/<slug>/.adopt_proposal.md`), **review** (researcher toggles `[x]`/`[ ]` checkboxes), **execute** (physical moves + in-place path fixups + backup + log + state updates). Every operation is logged to `ADOPTION_LOG.md` and every file/fixup is backed up to `.sub_project_adopt_backup/<slug>_<ts>/` — nothing is destroyed without a copy existing elsewhere.
+
+**Hard-refuse list** — paths the skill will not move even if the proposal checks them: `research_state.md`, `project_brief.md`, `CLAUDE.md`, `.claude/`, `.venv/`, `subprojects/`, `.sub_project_adopt_backup/`.
+
+**Separation from `/sub-project`**: intentional. Daily management (`create`, `capture`, `switch`, `list`, `status`) has a very different risk profile from a one-time destructive migration. Separating them isolates adoption bugs from stable daily-use commands.
+
+### /propose-lessons
+
+Invoked automatically when the `post_tool_use_buffer` hook emits a `[LESSON EXTRACT]` trigger. Dispatches a background subagent that scans the tool-activity buffer at `.tool_use_buffer.jsonl`, compares against the existing lessons index, and writes candidate lesson drafts to `.proposed_lessons.md` for researcher review. The main agent reviews the candidates and then invokes `/lessons-learned` for any worth promoting — the `/lessons-learned` skill remains the single writer to the permanent lessons KB.
+
 ### /slack
 
 Async communication with the researcher via Slack DM. Use when input is needed during unattended execution or when a task completes.
@@ -312,9 +342,10 @@ graph TD
 | Hook | Event | Purpose | Fires |
 |------|-------|---------|-------|
 | `session_start.sh` | SessionStart | Inject project brief, state, recent lessons, active sub-project | Once per session |
-| `kb_prime.sh` | UserPromptSubmit | Inject KB entry counts + index paths | Every prompt (>30 chars) |
+| `kb_prime.sh` | UserPromptSubmit | Inject KB entry counts + index paths + pending proposed-lesson count | Every prompt (>30 chars) |
 | `lessons_check.sh` | PreToolUse | Surface fresh/recent lessons before actions | Every Task/Write/Edit/Bash |
 | `breath_check.sh` | PreToolUse | Plan compliance, task health, intermediate findings | Every 10 min (configurable) |
+| `post_tool_use_buffer.sh` | PostToolUse | Buffer tool activity + emit debounced `[LESSON EXTRACT]` trigger | Every tool call (cheap, no LLM) |
 | `stop_state_check.sh` | Stop | Warn if `research_state.md` not updated | Every agent response |
 | `kb_index_hook.sh` | Stop | Regenerate KB indexes, auto-archive marked entries | When KB files modified |
 | `pre_compact.sh` | PreCompact | Backup state doc before context compaction | Before compaction |
@@ -330,6 +361,20 @@ export BREATH_CHECK_INTERVAL=300  # 5 minutes
 ```
 
 **Convention**: Tasks expected to take >10 minutes should use `run_in_background` so the hook can fire between polling calls.
+
+### post_tool_use_buffer Configuration
+
+The `post_tool_use_buffer` hook is cheap (~25 ms/fire, no LLM) and runs on every tool call. It appends a compact JSONL record to `.tool_use_buffer.jsonl`, skips noisy tools by default, and emits a `[LESSON EXTRACT]` trigger when both a time gate and an event-count gate pass. Override the thresholds:
+
+```bash
+export LESSON_EXTRACT_INTERVAL_SEC=900   # default 15 min between triggers
+export LESSON_EXTRACT_MIN_EVENTS=15      # default min buffer events to trigger
+export LESSON_EXTRACT_MIN_ERRORS=1       # default min errors to trigger early
+export LESSON_BUFFER_SKIP_TOOLS="Read,Glob,TodoWrite,TaskList,TaskGet"
+export LESSON_BUFFER_MAX_BYTES=2097152   # default 2 MB rotation threshold
+```
+
+When the trigger fires, the main agent invokes `/propose-lessons` which dispatches a background subagent to draft candidate lessons. The researcher reviews them in `.proposed_lessons.md` before promoting any to the permanent lessons KB via `/lessons-learned`.
 
 ## Subagents Reference
 
@@ -347,6 +392,7 @@ Subagents handle delegated work in isolated contexts, protecting the main conver
 | `deliberate-evidence-retriever` | Sonnet | Synthesize evidence for deliberation | /deliberate |
 | `deliberate-context-distiller` | Sonnet | Build compact evidence indexes | /deliberate |
 | `subproject-capture` | Haiku | Record ideas for inactive sub-projects | /sub-project |
+| `subproject-adopt-classifier` | Haiku | Inventory root-level material and classify into adoption buckets for a new sub-project | /adopt-to-sub-project |
 
 **Delegation rules**: The main agent may delegate literature search, code, and analysis. It **never** delegates planning, design decisions, protocol enforcement, state management, or researcher interaction.
 

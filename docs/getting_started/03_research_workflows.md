@@ -376,6 +376,22 @@ If you're working on the main experiment and have an idea for a different stream
 
 The idea gets recorded in the `icl-pilot` sub-project without disrupting your current work.
 
+**Retroactively adopting existing material into a sub-project:**
+
+Sometimes you realize — often weeks into a project — that everything you've been doing at the project root is actually one research stream, and you want to formalize it as a sub-project before starting a parallel one. That's what `/adopt-to-sub-project` is for:
+
+> `/adopt-to-sub-project pilot "HICSS Dark Side Paper" "Empirical taxonomy of multi-agent failure modes"`
+
+This runs in three phases:
+
+1. **Propose** (non-destructive): a Haiku classifier agent scans your existing knowledge/, lessons/, episodes/, deliberations/, versions/, manuscript/, and code directories, and writes a reviewable proposal at `subprojects/pilot/.adopt_proposal.md` with five sections (clean moves, moves with fixup, path fixups within moved code, keep-shared, uncertain).
+2. **Review**: open the proposal file in your editor, toggle `[x]`/`[ ]` checkboxes, move entries between sections if the classifier misjudged them.
+3. **Execute**: `/adopt-to-sub-project pilot --execute` physically moves the approved files, applies any in-file path fixups with verification, backs up everything to `.sub_project_adopt_backup/pilot_<ts>/`, appends a full provenance log to `subprojects/pilot/ADOPTION_LOG.md`, and auto-activates the sub-project.
+
+If anything looks wrong afterward: `/adopt-to-sub-project pilot --rollback` reads the log and reverses every move and fixup using the backup copies.
+
+**Guardrails**: the skill refuses to move `research_state.md`, `project_brief.md`, `CLAUDE.md`, `.claude/`, `.venv/`, or `subprojects/` itself — even if you manually check them in the proposal. Program-level state always stays at the project root. Use this skill once per sub-project; for creating fresh empty sub-projects, use `/sub-project create` instead.
+
 ---
 
 ## Workflow Summary

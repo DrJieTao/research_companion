@@ -162,6 +162,35 @@ Auto-archived 2 entries (1 decision, 1 question). Indexes rebuilt.
 
 ---
 
+### Lesson Watcher — "Did Something Teach Us Something?"
+
+**When**: After every tool the agent runs (cheap — no AI call, just a few lines of bookkeeping). The actual "propose lessons" decision only fires every ~15 minutes, or sooner if multiple tool calls have errored.
+
+**What it does**: Quietly writes a one-line record of each substantive tool call (failing Bash commands, file edits, subagent returns, rework loops) to a buffer file at the project root. When the buffer accumulates enough activity — or any errors appear — the helper emits a nudge telling the agent to invoke `/propose-lessons`, which dispatches a background subagent to draft candidate lessons.
+
+**What you see** (only when the gate fires):
+```
+[LESSON EXTRACT] Buffer has 18 events (2 errors) over 16m.
+  Invoke /propose-lessons to scan the buffer for candidate lessons.
+  The skill launches a background Task subagent that writes candidates
+  to .proposed_lessons.md for your review.
+```
+
+When the agent runs `/propose-lessons`, a few seconds later you'll see a one-line summary like:
+```
+/propose-lessons: 2 candidates written to .proposed_lessons.md
+  - [LLC-20260409-1] uv run vs bare python drift on macOS
+  - [LLC-20260409-2] Orchestrator edits breaking feedback pool contract
+```
+
+**Why it matters**: Before this helper, lessons were only captured at session end or when you explicitly asked for a reflection. Real moments of learning — a failing test that reveals a hidden assumption, a rework loop showing a brittle design, a subagent return that exposed a gap in your KB — used to vanish once the turn moved on. Now they land in a staging file you review when you're ready, and promote to the permanent lessons KB via `/lessons-learned` only if they're worth keeping.
+
+**What you don't need to do**: The buffer is ignored on successful Read/Glob/TodoWrite calls (no signal). You don't have to clean up the buffer — it rotates automatically. You don't have to accept every candidate — many will be borderline or near-duplicates of existing lessons; discard them with a single text edit.
+
+**Your review path**: Open `.proposed_lessons.md`, skim the candidates, delete the ones that aren't load-bearing, run `/lessons-learned` on the ones you want to keep. The skill's permanent-write behavior is unchanged — it's still the single writer to `lessons/*.md`.
+
+---
+
 ### Pre-Compact Backup — "Safety Net"
 
 **When**: Before the system compresses old conversation messages (happens automatically when conversations get very long).
