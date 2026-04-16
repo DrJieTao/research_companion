@@ -18,6 +18,9 @@ Type these during a session to invoke specific capabilities:
 | `/note-taker` | Inspect and triage ideas auto-captured during "noted" sessions | After brainstorming, to review staged lessons or check capture status |
 | `/propose-lessons` | Scan the tool-activity buffer for candidate lessons and write drafts to `.proposed_lessons.md` | When the `[LESSON EXTRACT]` trigger appears, or on demand |
 | `/review-figure` | Two-pass review of a manuscript figure (style + factual grounding) | Before sending a figure to co-authors or pasting it into the paper |
+| `/pm` | Manage PM ticket backlog: list, scan, add, pick, close, timetable | Track work items, prioritize tasks, close with housekeeping |
+| `/pm next` | Show highest-priority open ticket with full KB context (read-only) | Quick check before planning |
+| `/pm scan` | Find untracked KB-QST entries and add to backlog | After "noted" sessions (auto for new entries) |
 | `/slack` | Enable async Slack communication | When you need to step away but want updates |
 
 **Subagents** (delegated by the main agent, not invoked directly):
@@ -44,6 +47,7 @@ Type these during a session to invoke specific capabilities:
 | **Knowledge Base (KB)** | A structured collection of your project's decisions, experiments, findings, literature, questions, and reviews. Persists across sessions. |
 | **Lessons Learned** | Process insights that capture WHY things worked or didn't — not just what happened. Surfaced before the agent takes action. |
 | **State Document** | `research_state.md` — the single source of truth for what you're working on, what's been decided, and what's pending. |
+| **Roadmap** | The `## Roadmap` section in `research_state.md` and sub-project `state.md`. A curated table of research inflection points (PROCEED/REFINE/PIVOT decisions and milestone gates). Designed for paper-writing: trace the research journey from one scannable location. Sub-project roadmaps propagate to the root roadmap. |
 | **Hook** | An automatic check that runs at specific moments (session start, before actions, after responses). You don't trigger these — they happen on their own. |
 | **Breath Check** | A self-check that fires every 10 minutes during long tasks. Ensures the agent stays on plan and records intermediate results. |
 | **KB Prime** | A brief summary of your knowledge base shown to the agent before it processes your message. Helps it find relevant past context. |

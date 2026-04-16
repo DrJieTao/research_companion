@@ -277,6 +277,23 @@ sequenceDiagram
     Hooks->>Agent: State updated? Yes.
 ```
 
+### PM Backlog — "Tracking Your Requests"
+
+**When**: Every time you send a message (via KB Prime) and at session start.
+
+**What it does**: Counts open, in-progress, and blocked tickets in `.pm_backlog.md` and shows the summary.
+
+**What you see**:
+```
+[PM] Tickets: 3 open, 1 in-progress, 0 blocked -> .pm_backlog.md
+```
+
+**Why it matters**: When you drop ideas during the "noted" protocol, each question is automatically captured as a PM ticket. The agent sees the ticket count on every prompt and will ask you whether to prioritize existing tickets or proceed with new work when you start a new task. Use `/pm list` to see the full backlog.
+
+**Automatic ticket lifecycle**: Questions captured during "noted" sessions → auto-registered as tickets → agent works on them when you approve → `/research-decision` auto-closes resolved tickets.
+
+---
+
 ## Key Takeaway
 
 You don't need to manage any of this. The helpers work silently, and the agent responds to their nudges automatically. Your job is to:

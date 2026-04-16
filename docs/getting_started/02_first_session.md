@@ -144,6 +144,7 @@ As you work, you'll occasionally see messages in brackets. These are the framewo
 | `[KB PRIME] 42 active entries...` | "Here's what's in our knowledge base right now." | No. This just helps the agent find relevant context. |
 | `[BREATH CHECK] 12m since last self-check...` | "It's been a while — let me verify I'm still on track." | No. The agent pauses to check itself and continues. |
 | `[STATE REMINDER] research_state.md not updated...` | "I should update our state document." | No. The agent updates it. |
+| `[PM] Tickets: 3 open, 1 in-progress...` | "Here's how many work items are tracked in the backlog." | No, unless you want to check: type `/pm list`. |
 
 **You don't need to respond to any of these.** They're conversations between the framework and the agent. You'll only be involved if the agent discovers something that needs your input — like a finding that changes the direction of the project.
 

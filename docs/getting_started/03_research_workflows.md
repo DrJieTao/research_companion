@@ -239,6 +239,18 @@ flowchart TD
 | **REFINE** | Partially promising — needs tweaking | Agent proposes parameter changes, re-runs (with a budget limit) |
 | **PIVOT** | Core assumptions invalidated | Agent recommends `/deliberate` for multi-perspective analysis before changing direction |
 
+**What gets recorded when a decision is made:**
+
+| Where | What |
+|-------|------|
+| `knowledge/decisions_active.md` | Full decision entry with rationale and evidence |
+| `research_state.md` → Decisions Made | Updated active phase and scope |
+| `research_state.md` → Roadmap | New row in Program Timeline (inflection points only) |
+| Sub-project `state.md` → Roadmap | New row in Progression table (if sub-project active) |
+| `lessons/` | Lesson entry if decision involved failure or surprise |
+
+The **Roadmap** provides a curated progression view — not every decision gets a row. Only inflection points: advancing to a new phase (PROCEED), changing approach (REFINE), or changing direction (PIVOT). This makes it easy to trace the research journey when writing a paper.
+
 **Example REFINE:**
 
 ```
