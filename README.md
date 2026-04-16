@@ -8,7 +8,10 @@ Built for researchers who use Claude Code as a daily tool for experimental desig
 
 - **Enforces research protocols** via hooks (mechanical guarantees, not just prompt instructions)
 - **Maintains three persistent knowledge systems** across sessions: operational state, categorized knowledge base, and lessons learned with self-reflection
+- **Tracks research progression** with a curated Roadmap of inflection points (PROCEED/REFINE/PIVOT decisions), designed for paper-writing
+- **Manages a project backlog** with auto-capture of ideas as tickets, effort tracking, and auto-close when decisions resolve questions
 - **Supports multi-perspective deliberation** with 4 simulated reviewer personas
+- **Plans complex tasks with adversarial review** — a Plan subagent drafts, a Review subagent critiques, the main agent synthesizes
 - **Manages concurrent research streams** via sub-projects with isolated state
 - **Self-checks during long executions** via time-gated health monitoring
 - **Bootstraps new projects** with a single command
@@ -46,21 +49,27 @@ graph TB
         S9["/slack"]
         S10["/propose-lessons"]
         S11["/adopt-to-sub-project"]
+        S12["/pm"]
+        S13["/note-taker"]
+        S14["/house-keeping"]
+        S15["/review-figure"]
     end
 
     subgraph "Subagents (Delegated Work)"
         A1["literature-researcher"]
         A2["code-implementer"]
         A3["data-analyst"]
-        A4["deliberate personas<br/>(4 reviewers)"]
-        A5["subproject-capture<br/>(Haiku)"]
-        A6["subproject-adopt-classifier<br/>(Haiku)"]
+        A4["figure-specialist"]
+        A5["deliberate personas<br/>(4 reviewers)"]
+        A6["note-taker-classifier<br/>(Haiku)"]
+        A7["subproject-capture<br/>(Haiku)"]
     end
 
     subgraph "Persistent State"
-        RS["research_state.md<br/>(live ops)"]
+        RS["research_state.md<br/>(Roadmap + Task Queue)"]
         KB["knowledge/<br/>(categorized KB)"]
         LL["lessons/<br/>(self-reflection)"]
+        PM[".pm_backlog.md<br/>(ticket backlog)"]
         EP["episodes/<br/>(session narratives)"]
     end
 
@@ -117,12 +126,16 @@ When providing ideas or context in bulk:
 
 Every task follows: **PLAN** → **CLARIFY** → **REVIEW** → **APPROVE** → **EXECUTE**. The agent never skips from plan to execution without your explicit approval.
 
+Before proposing any plan, the agent reads the lessons index and incorporates relevant past lessons (referenced by ID). For **complex tasks**, a Plan subagent drafts the plan, an Adversarial Review subagent critiques it, and the main agent synthesizes both into the final proposal. For simple tasks, the agent plans directly.
+
 ### Research Decision Protocol
 
 After every experiment or milestone, the agent evaluates:
 - **PROCEED** — results validate the approach
 - **REFINE** — partially promising; tweak and re-run
 - **PIVOT** — core assumptions invalidated; propose alternatives
+
+Decisions update the **Roadmap** in the state document (one row per inflection point) and auto-close any resolved PM tickets.
 
 ```mermaid
 flowchart LR
@@ -166,6 +179,8 @@ The primary anti-drift mechanism. Updated after every substantive exchange.
 | Section | Purpose |
 |---------|---------|
 | Active Phase | Current task and status |
+| Roadmap | Program Timeline (inflection points) + Sub-Project Status — designed for paper-writing |
+| Task Queue | Compact index of active PM tickets, synced from `.pm_backlog.md` |
 | Decisions Made | Append-only decision log with rationale |
 | Open Questions | Tracked questions (open / parked / resolved) |
 | Settled Assumptions | Not re-questioned unless explicitly reopened |
@@ -307,6 +322,22 @@ Runs in three phases: **propose** (non-destructive, dispatches a Haiku classifie
 
 Invoked automatically when the `post_tool_use_buffer` hook emits a `[LESSON EXTRACT]` trigger. Dispatches a background subagent that scans the tool-activity buffer at `.tool_use_buffer.jsonl`, compares against the existing lessons index, and writes candidate lesson drafts to `.proposed_lessons.md` for researcher review. The main agent reviews the candidates and then invokes `/lessons-learned` for any worth promoting — the `/lessons-learned` skill remains the single writer to the permanent lessons KB.
 
+### /pm
+
+Lightweight project manager. Tickets are KB-QST entries tracked by `.pm_backlog.md`. Commands: `list`, `scan`, `add`, `pick`, `close`, `timetable`, `prioritize`, `next` (read-only), `status` (read-only). Ideas captured during "noted" sessions auto-register as tickets. When `/research-decision` resolves a question that's a ticket, it auto-closes. The agent surfaces open ticket counts before each prompt and asks prioritize-or-queue when you start a new task.
+
+### /note-taker
+
+Inspect and triage ideas auto-captured during "noted" sessions. The `note-taker-classifier` (Haiku subagent) runs in the background after each "noted" acknowledgment, classifying ideas into KB categories or staging uncertain items for review. Commands: `status`, `review`.
+
+### /house-keeping
+
+KB hygiene: scans active findings and decisions for validation status, proposes converting unvalidated entries to open questions. Follows the propose-review-execute pattern — non-destructive scan, researcher reviews, then executes approved changes. Automatically suggested after episodic summaries.
+
+### /review-figure
+
+Two-pass review of manuscript figures. Pass 1: style compliance against `FIGURE_AGENT_PROMPT.md` (sections 1-11). Pass 2: factual grounding against KB, config, source code. Never modifies files — report only.
+
 ### /slack
 
 Async communication with the researcher via Slack DM. Use when input is needed during unattended execution or when a task completes.
@@ -341,8 +372,8 @@ graph TD
 
 | Hook | Event | Purpose | Fires |
 |------|-------|---------|-------|
-| `session_start.sh` | SessionStart | Inject project brief, state, recent lessons, active sub-project | Once per session |
-| `kb_prime.sh` | UserPromptSubmit | Inject KB entry counts + index paths + pending proposed-lesson count | Every prompt (>30 chars) |
+| `session_start.sh` | SessionStart | Inject project brief, state, recent lessons, active sub-project, open PM ticket count | Once per session |
+| `kb_prime.sh` | UserPromptSubmit | Inject KB entry counts, index paths, pending proposed-lessons, PM ticket counts | Every prompt (>30 chars) |
 | `lessons_check.sh` | PreToolUse | Surface fresh/recent lessons before actions | Every Task/Write/Edit/Bash |
 | `breath_check.sh` | PreToolUse | Plan compliance, task health, intermediate findings | Every 10 min (configurable) |
 | `post_tool_use_buffer.sh` | PostToolUse | Buffer tool activity + emit debounced `[LESSON EXTRACT]` trigger | Every tool call (cheap, no LLM) |
@@ -385,16 +416,18 @@ Subagents handle delegated work in isolated contexts, protecting the main conver
 | `literature-researcher` | Sonnet | Search and summarize academic papers | Main agent |
 | `code-implementer` | Sonnet | Write and test code | Main agent |
 | `data-analyst` | Sonnet | Run analysis, generate visualizations | Main agent |
+| `figure-specialist` | Sonnet | Create publication-quality figures (matplotlib/graphviz) | Main agent |
 | `deliberate-collaborator` | Sonnet | Adjacent discipline perspective | /deliberate |
 | `deliberate-editor` | Sonnet | Editor-in-Chief (publication framing) | /deliberate |
 | `deliberate-reviewer2` | Sonnet | Adversarial peer reviewer | /deliberate |
 | `deliberate-strategist` | Sonnet | Integration and decisive recommendation | /deliberate |
-| `deliberate-evidence-retriever` | Sonnet | Synthesize evidence for deliberation | /deliberate |
-| `deliberate-context-distiller` | Sonnet | Build compact evidence indexes | /deliberate |
+| `deliberate-evidence-retriever` | Haiku | Select top-5 KB entries per persona, synthesize evidence brief | /deliberate |
+| `deliberate-context-distiller` | Haiku | Build compact evidence indexes (< 700 words) | /deliberate |
+| `note-taker-classifier` | Haiku | Classify async input → KB entries or staged items; auto-register tickets | "noted" protocol |
 | `subproject-capture` | Haiku | Record ideas for inactive sub-projects | /sub-project |
-| `subproject-adopt-classifier` | Haiku | Inventory root-level material and classify into adoption buckets for a new sub-project | /adopt-to-sub-project |
+| `subproject-adopt-classifier` | Haiku | Classify root material for sub-project adoption | /adopt-to-sub-project |
 
-**Delegation rules**: The main agent may delegate literature search, code, and analysis. It **never** delegates planning, design decisions, protocol enforcement, state management, or researcher interaction.
+**Delegation rules**: The main agent may delegate literature search, code, analysis, figure creation, and plan drafting (with adversarial review). It **never** delegates design decisions, protocol enforcement, state management, researcher interaction, plan synthesis, or plan approval.
 
 ## Project Structure
 
@@ -419,6 +452,12 @@ my_study/
 │   │   ├── research-decision → (symlink)
 │   │   ├── data-loader → (symlink)
 │   │   ├── slack → (symlink)
+│   │   ├── pm → (symlink)
+│   │   ├── note-taker → (symlink)
+│   │   ├── propose-lessons → (symlink)
+│   │   ├── house-keeping → (symlink)
+│   │   ├── adopt-to-sub-project → (symlink)
+│   │   ├── review-figure → (symlink)
 │   │   ├── deliberate/          # Copied (customize personas)
 │   │   └── sub-project/         # Copied
 │   └── agents/
@@ -527,6 +566,14 @@ sequenceDiagram
     A->>KB: /episodic-summary
     A->>KB: /lessons-learned
 ```
+
+## Documentation
+
+| Document | Audience | Content |
+|----------|----------|---------|
+| [One-Pager](docs/one-pager.md) | Collaborators new to the framework | Plain-language overview of what it does and how it works |
+| [Architecture Reference](docs/architecture.md) | Developers and power users | Full technical reference: all layers, skills, agents, hooks, knowledge architecture |
+| [Getting Started](docs/getting_started/) | New users setting up | Step-by-step guides from installation to first session |
 
 ## Requirements
 
